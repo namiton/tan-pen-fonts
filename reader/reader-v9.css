@@ -48,3 +48,5 @@
 @media(max-width:600px){.tp-reader{margin:20px auto;padding:12px;border-radius:8px}.tp-toolbar{gap:10px;padding-bottom:12px;margin-bottom:14px}.tp-sizes::before{padding-left:4px;padding-right:5px}.tp-toolbar button{padding:7px 9px}.tp-bookmarks{flex:1 0 auto}.tp-page-inner{inset:26px 24px 42px}.tp-page-odd .tp-page-no{right:22px}.tp-page-even .tp-page-no{left:22px}.tp-cover-panel{inset:24px}.tp-cover-title{font-size:23px;left:18px;right:18px}.tp-controls{gap:10px;margin-top:16px}.tp-controls button{padding:9px 8px;font-size:12px}.tp-status{min-width:56px}}
 @media(prefers-reduced-motion:reduce){.tp-reader *{scroll-behavior:auto!important;transition:none!important}}
 @media print{.tp-reader{display:none!important}.entry-content.tp-original{display:block!important;writing-mode:horizontal-tb!important;height:auto!important;overflow:visible!important}}
+
+.tp-reader[data-layout=single] .tp-bookmark-ribbon{left:auto;right:12px;transform:rotate(-2deg)}
