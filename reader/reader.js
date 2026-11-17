@@ -34,8 +34,11 @@ async function mount(source){
  }
  function build(){
   if(host.hidden)return;const width=host.clientWidth;single=width<600;pageWidth=Math.max(240,Math.floor(Math.min(width/(single?1:2),440)));pageHeight=Math.max(340,Math.min(620,Math.floor(innerHeight*.72)));
-  const keep=logical;const chunks=paginate();total=chunks.length;if(!total)throw Error('Empty story');
-  pages=chunks.map((chunk,i)=>{const p=el('div','tp-page');const inner=el('div','tp-page-inner');chunk.forEach(t=>inner.append(el('p','',t)));p.append(inner,el('span','tp-page-no',String(i+1)));p.setAttribute('aria-label',`${i+1}ページ`);return p});
+  const keep=logical;const chunks=paginate();if(!chunks.length)throw Error('Empty story');total=chunks.length+2;
+  const title=(source.closest('article')?.querySelector('.entry-title')?.innerText||document.querySelector('h1')?.innerText||document.title).trim();
+  const cover=el('div','tp-page tp-cover');cover.setAttribute('aria-label','1ページ 表紙');const panel=el('div','tp-cover-panel');panel.append(el('div','tp-cover-title',title));cover.append(panel);
+  const blank=el('div','tp-page tp-blank');blank.setAttribute('aria-label','2ページ 白紙');
+  pages=[cover,blank,...chunks.map((chunk,i)=>{const p=el('div','tp-page');const inner=el('div','tp-page-inner');chunk.forEach(t=>inner.append(el('p','',t)));p.append(inner,el('span','tp-page-no',String(i+3)));p.setAttribute('aria-label',`${i+3}ページ`);return p})];
   if(!single&&pages.length%2)pages.push(el('div','tp-page'));pages.reverse();
   if(book){book.destroy();stage.replaceChildren();bookEl=el('div','tp-book');stage.append(bookEl)}
   stage.style.width=pageWidth*(single?1:2)+'px';stage.style.height=pageHeight+'px';
@@ -49,5 +52,5 @@ async function mount(source){
  function fallback(e){console.warn('Reader fallback:',e);host.hidden=true;source.classList.remove('tp-original');source.classList.add('tp-plain')}
 }
 async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const s of document.querySelectorAll('.entry-content'))await mount(s)}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v4.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
