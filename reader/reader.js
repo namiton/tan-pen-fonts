@@ -39,7 +39,7 @@ async function mount(source){
   if(!single&&pages.length%2)pages.push(el('div','tp-page'));pages.reverse();
   if(book){book.destroy();stage.replaceChildren();bookEl=el('div','tp-book');stage.append(bookEl)}
   stage.style.width=pageWidth*(single?1:2)+'px';stage.style.height=pageHeight+'px';
-  book=new St.PageFlip(bookEl,{width:pageWidth,height:pageHeight,size:'fixed',autoSize:false,usePortrait:single,showCover:false,startPage:Math.max(0,pages.length-Math.min(keep,total)),showPageCorners:true,flippingTime:reduced?1:650,drawShadow:!reduced,maxShadowOpacity:.22,mobileScrollSupport:false,disableFlipByClick:true});
+  book=new St.PageFlip(bookEl,{width:pageWidth,height:pageHeight,size:'fixed',autoSize:false,usePortrait:single,showCover:false,startPage:Math.max(0,pages.length-Math.min(keep,total)),showPageCorners:true,flippingTime:reduced?1:650,drawShadow:!reduced,maxShadowOpacity:.22,mobileScrollSupport:false,disableFlipByClick:false});
   book.on('flip',update);book.on('changeOrientation',update);book.loadFromHTML(pages);update();source.classList.add('tp-original');
  }
  next.onclick=()=>book?.flipPrev('bottom');prev.onclick=()=>book?.flipNext('bottom');
