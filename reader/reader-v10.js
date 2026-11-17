@@ -15,19 +15,19 @@ async function mount(source){
  const title=(titleNode?.innerText||document.querySelector('h1')?.innerText||document.title).trim();
  const href=titleNode?.querySelector('a[href]')?.href||document.querySelector('link[rel="canonical"]')?.href||location.href.split('?')[0];
  const bookmarkKey='tanpen-bookmark-v1:'+href,settings=read('tanpen-reader-settings-v1')||{};
- let theme=settings.theme==='dark'?'dark':'light',size=['small','medium','large'].includes(settings.size)?settings.size:'medium';
+ let theme=settings.theme==='dark'?'dark':'light',size=['tiny','small','medium','large'].includes(settings.size)?settings.size:'medium';
  let saved=read(bookmarkKey),book=null,pages=[],chunks=[],pageWidth=0,pageHeight=0,single=false,logical=1,total=0,timer,building=false;
  const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
  const host=el('section','tp-reader');host.setAttribute('aria-label','縦書きの読書ビュー');
  const toolbar=el('div','tp-toolbar'),themeButton=button(''),sizes=el('div','tp-sizes');sizes.setAttribute('role','group');sizes.setAttribute('aria-label','文字サイズ');
- const sizeButtons={};for(const [key,label] of [['small','小'],['medium','中'],['large','大']]){const b=button(label);b.setAttribute('aria-label','文字サイズ '+label);sizes.append(b);sizeButtons[key]=b}
+ const sizeButtons={};for(const [key,label] of [['tiny','極小'],['small','小'],['medium','中'],['large','大']]){const b=button(label);b.setAttribute('aria-label','文字サイズ '+label);sizes.append(b);sizeButtons[key]=b}
  const saveButton=button('しおりを挟む'),goButton=button('しおりへ戻る'),removeButton=button('しおりを外す');
  const bookmarkTools=el('div','tp-bookmarks');bookmarkTools.setAttribute('role','group');bookmarkTools.setAttribute('aria-label','しおり');bookmarkTools.append(saveButton,goButton,removeButton);toolbar.append(themeButton,sizes,bookmarkTools);
  const stage=el('div','tp-stage'),bookFrame=el('div','tp-book-frame'),ribbon=el('span','tp-bookmark-ribbon'),controls=el('nav','tp-controls');let bookEl=el('div','tp-book');controls.setAttribute('aria-label','ページ操作');
  ribbon.hidden=true;ribbon.setAttribute('role','img');ribbon.setAttribute('aria-label','しおりを挟んだ位置');
  const next=button('次のページ ←'),prev=button('→ 前のページ'),status=el('span','tp-status'),mode=button('通常の文章で読む');mode.className='tp-mode';
  status.setAttribute('aria-live','polite');controls.append(next,status,prev);stage.append(bookEl);bookFrame.append(stage,ribbon);host.append(toolbar,bookFrame,controls,mode);source.before(host);
- function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
+ function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
  function bookmarkButtons(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=!valid;saveButton.textContent=valid?'しおりを更新':'しおりを挟む';paintBookmark()}
  function paintBookmark(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);if(!book||!valid){ribbon.hidden=true;return}const target=pageFor(saved),last=Math.min(total,logical+(book.getOrientation()==='portrait'?0:1));ribbon.hidden=target<logical||target>last}
  function anchor(){if(logical<=2)return {front:logical};return {offset:chunks[Math.min(chunks.length-1,logical-3)]?.start||0}}
