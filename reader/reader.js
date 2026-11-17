@@ -26,8 +26,8 @@ async function mount(source){
  const stage=el('div','tp-stage'),controls=el('nav','tp-controls');let bookEl=el('div','tp-book');controls.setAttribute('aria-label','ページ操作');
  const next=button('次のページ ←'),prev=button('→ 前のページ'),status=el('span','tp-status'),message=el('p','tp-message'),mode=button('通常の文章で読む');mode.className='tp-mode';
  status.setAttribute('aria-live','polite');message.setAttribute('role','status');controls.append(next,status,prev);stage.append(bookEl);host.append(toolbar,stage,controls,message,mode);source.before(host);
- function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({small:16,medium:18,large:21})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({small:16,medium:18,large:21})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
- function bookmarkButtons(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);goButton.disabled=removeButton.disabled=!valid;saveButton.textContent=valid?'しおりを更新':'しおりを挟む'}
+ function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
+ function bookmarkButtons(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=!valid;saveButton.textContent=valid?'しおりを更新':'しおりを挟む'}
  function anchor(){if(logical<=2)return {front:logical};return {offset:chunks[Math.min(chunks.length-1,logical-3)]?.start||0}}
  function pageFor(a){if(a.front)return a.front;const found=chunks.findIndex(c=>a.offset>=c.start&&a.offset<c.end);return found<0?total:found+3}
  function update(){if(!book)return;const i=book.getCurrentPageIndex(),portrait=book.getOrientation()==='portrait';logical=Math.max(1,pages.length-i-(portrait?0:1));const last=Math.min(total,logical+(portrait?0:1));status.textContent=logical<=2?(logical===1?'表紙':'白紙'):`${logical-2}${last>logical?'–'+(last-2):''} / ${total-2}`;next.disabled=last>=total;prev.disabled=logical<=1}
@@ -47,7 +47,7 @@ async function mount(source){
  function fallback(error){console.warn('Reader fallback:',error);host.hidden=true;source.classList.remove('tp-original');source.classList.add('tp-plain')}
  function build(keep=anchor()){
   if(host.hidden||building)return;building=true;
-  try{const width=host.clientWidth;single=width<600;pageWidth=Math.max(220,Math.floor(Math.min(width/(single?1:2),440)));pageHeight=Math.max(340,Math.min(620,Math.floor(innerHeight*.72)));
+  try{const style=getComputedStyle(host),width=host.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);single=width<560;pageWidth=Math.max(200,Math.floor(Math.min(width/(single?1:2),440)));pageHeight=Math.max(340,Math.min(620,Math.floor(innerHeight*.74),Math.round(pageWidth*1.6)));
    chunks=paginate();if(!chunks.length)throw Error('Empty story');total=chunks.length+2;
    const cover=el('div','tp-page tp-cover');cover.setAttribute('aria-label','表紙');const panel=el('div','tp-cover-panel');panel.append(el('div','tp-cover-title',title));cover.append(panel);
    const blank=el('div','tp-page tp-blank');blank.setAttribute('aria-label','白紙');
@@ -71,5 +71,5 @@ async function mount(source){
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
 async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source)}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v7.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v8.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
