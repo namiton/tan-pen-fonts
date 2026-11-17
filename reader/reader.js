@@ -23,14 +23,16 @@ async function mount(source){
  const sizeButtons={};for(const [key,label] of [['small','小'],['medium','中'],['large','大']]){const b=button(label);b.setAttribute('aria-label','文字サイズ '+label);sizes.append(b);sizeButtons[key]=b}
  const saveButton=button('しおりを挟む'),goButton=button('しおりへ戻る'),removeButton=button('しおりを外す');
  const bookmarkTools=el('div','tp-bookmarks');bookmarkTools.setAttribute('role','group');bookmarkTools.setAttribute('aria-label','しおり');bookmarkTools.append(saveButton,goButton,removeButton);toolbar.append(themeButton,sizes,bookmarkTools);
- const stage=el('div','tp-stage'),controls=el('nav','tp-controls');let bookEl=el('div','tp-book');controls.setAttribute('aria-label','ページ操作');
- const next=button('次のページ ←'),prev=button('→ 前のページ'),status=el('span','tp-status'),message=el('p','tp-message'),mode=button('通常の文章で読む');mode.className='tp-mode';
- status.setAttribute('aria-live','polite');message.setAttribute('role','status');controls.append(next,status,prev);stage.append(bookEl);host.append(toolbar,stage,controls,message,mode);source.before(host);
+ const stage=el('div','tp-stage'),bookFrame=el('div','tp-book-frame'),ribbon=el('span','tp-bookmark-ribbon'),controls=el('nav','tp-controls');let bookEl=el('div','tp-book');controls.setAttribute('aria-label','ページ操作');
+ ribbon.hidden=true;ribbon.setAttribute('role','img');ribbon.setAttribute('aria-label','しおりを挟んだ位置');
+ const next=button('次のページ ←'),prev=button('→ 前のページ'),status=el('span','tp-status'),mode=button('通常の文章で読む');mode.className='tp-mode';
+ status.setAttribute('aria-live','polite');controls.append(next,status,prev);stage.append(bookEl);bookFrame.append(stage,ribbon);host.append(toolbar,bookFrame,controls,mode);source.before(host);
  function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
- function bookmarkButtons(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=!valid;saveButton.textContent=valid?'しおりを更新':'しおりを挟む'}
+ function bookmarkButtons(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=!valid;saveButton.textContent=valid?'しおりを更新':'しおりを挟む';paintBookmark()}
+ function paintBookmark(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);if(!book||!valid){ribbon.hidden=true;return}const target=pageFor(saved),last=Math.min(total,logical+(book.getOrientation()==='portrait'?0:1));ribbon.hidden=target<logical||target>last}
  function anchor(){if(logical<=2)return {front:logical};return {offset:chunks[Math.min(chunks.length-1,logical-3)]?.start||0}}
  function pageFor(a){if(a.front)return a.front;const found=chunks.findIndex(c=>a.offset>=c.start&&a.offset<c.end);return found<0?total:found+3}
- function update(){if(!book)return;const i=book.getCurrentPageIndex(),portrait=book.getOrientation()==='portrait';logical=Math.max(1,pages.length-i-(portrait?0:1));const last=Math.min(total,logical+(portrait?0:1));status.textContent=logical<=2?(logical===1?'表紙':'白紙'):`${logical-2}${last>logical?'–'+(last-2):''} / ${total-2}`;next.disabled=last>=total;prev.disabled=logical<=1}
+ function update(){if(!book)return;const i=book.getCurrentPageIndex(),portrait=book.getOrientation()==='portrait';logical=Math.max(1,pages.length-i-(portrait?0:1));const last=Math.min(total,logical+(portrait?0:1));status.textContent=logical<=2?(logical===1?'表紙':'白紙'):`${logical-2}${last>logical?'–'+(last-2):''} / ${total-2}`;next.disabled=last>=total;prev.disabled=logical<=1;paintBookmark()}
  function addPart(parent,part){const p=el('p','',part.text);if(part.continued)p.dataset.continued='true';if(/^[「『（〈《【]/u.test(part.text))p.dataset.dialog='true';parent.append(p);return p}
  function paginate(){
   const measure=el('div','tp-page tp-measure');measure.style.width=pageWidth+'px';measure.style.height=pageHeight+'px';const inner=el('div','tp-page-inner');measure.append(inner);host.append(measure);
@@ -53,9 +55,9 @@ async function mount(source){
    const blank=el('div','tp-page tp-blank');blank.setAttribute('aria-label','白紙');
    pages=[cover,blank,...chunks.map((chunk,i)=>{const p=el('div','tp-page '+(i%2?'tp-page-even':'tp-page-odd')),inner=el('div','tp-page-inner');chunk.parts.forEach(part=>addPart(inner,part));p.append(inner,el('span','tp-page-no',String(i+1)));p.setAttribute('aria-label',`本文${i+1}ページ`);p.dataset.start=String(chunk.start);return p})];
    if(!single&&pages.length%2)pages.push(el('div','tp-page'));pages.reverse();
-   if(book){book.destroy();stage.replaceChildren();bookEl=el('div','tp-book');stage.append(bookEl)}stage.style.width=pageWidth*(single?1:2)+'px';stage.style.height=pageHeight+'px';
+   if(book){book.destroy();stage.replaceChildren();bookEl=el('div','tp-book');stage.append(bookEl)}bookFrame.style.width=stage.style.width=pageWidth*(single?1:2)+'px';stage.style.height=pageHeight+'px';
    book=new St.PageFlip(bookEl,{width:pageWidth,height:pageHeight,size:'fixed',autoSize:false,usePortrait:single,showCover:false,startPage:Math.max(0,pages.length-Math.min(pageFor(keep),total)),showPageCorners:false,flippingTime:reduced?1:650,drawShadow:!reduced,maxShadowOpacity:.22,mobileScrollSupport:false,disableFlipByClick:false});
-   book.on('flip',update);book.on('changeOrientation',update);book.loadFromHTML(pages);update();if(!source.classList.contains('tp-plain'))source.classList.add('tp-original');
+   book.on('flip',update);book.on('changeOrientation',update);book.on('changeState',event=>{if(event.data==='read')paintBookmark();else ribbon.hidden=true});book.loadFromHTML(pages);update();if(!source.classList.contains('tp-plain'))source.classList.add('tp-original');
   }finally{building=false}
  }
  function rebuild(keep){try{build(keep)}catch(error){fallback(error)}}
@@ -63,13 +65,13 @@ async function mount(source){
  host.addEventListener('keydown',e=>{if(e.target.closest('.tp-toolbar'))return;if(e.key==='ArrowLeft'){e.preventDefault();if(!next.disabled)next.click()}if(e.key==='ArrowRight'){e.preventDefault();if(!prev.disabled)prev.click()}});
  themeButton.onclick=()=>{theme=theme==='dark'?'light':'dark';applySettings();write('tanpen-reader-settings-v1',{theme,size})};
  for(const key in sizeButtons)sizeButtons[key].onclick=()=>{if(key===size)return;const keep=anchor();size=key;applySettings();write('tanpen-reader-settings-v1',{theme,size});rebuild(keep)};
- saveButton.onclick=()=>{saved={...anchor(),offset:anchor().offset||0,title,updatedAt:new Date().toISOString()};const ok=write(bookmarkKey,saved);bookmarkButtons();message.textContent=ok?'この端末にしおりを保存しました。':'このブラウザーではしおりを保存できません。'};
- goButton.onclick=()=>{if(!saved)return;if(source.classList.contains('tp-plain'))mode.click();book.turnToPage(Math.max(0,pages.length-pageFor(saved)));update();message.textContent='しおりの位置に戻りました。'};
- removeButton.onclick=()=>{saved=null;const ok=write(bookmarkKey,null);bookmarkButtons();message.textContent=ok?'しおりを外しました。':'このブラウザーでは保存内容を変更できません。'};
- mode.onclick=()=>{const plain=source.classList.toggle('tp-plain');stage.hidden=controls.hidden=plain;source.classList.toggle('tp-original',!plain);mode.textContent=plain?'ページめくりで読む':'通常の文章で読む';if(!plain)update()};
+ saveButton.onclick=()=>{const candidate={...anchor(),offset:anchor().offset||0,title,updatedAt:new Date().toISOString()};if(write(bookmarkKey,candidate)){saved=candidate;bookmarkButtons()}};
+ goButton.onclick=()=>{if(!saved)return;if(source.classList.contains('tp-plain'))mode.click();book.turnToPage(Math.max(0,pages.length-pageFor(saved)));update()};
+ removeButton.onclick=()=>{if(write(bookmarkKey,null)){saved=null;bookmarkButtons()}};
+ mode.onclick=()=>{const plain=source.classList.toggle('tp-plain');bookFrame.hidden=controls.hidden=plain;source.classList.toggle('tp-original',!plain);mode.textContent=plain?'ページめくりで読む':'通常の文章で読む';if(!plain)update()};
  applySettings();bookmarkButtons();
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
 async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source)}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v8.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v9.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
