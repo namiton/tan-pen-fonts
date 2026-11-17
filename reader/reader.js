@@ -8,7 +8,7 @@ function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className
 async function mount(source){
  if(source.dataset.tpMounted)return;source.dataset.tpMounted='1';
  const blocks=[...source.children].filter(n=>n.tagName==='P').map(n=>n.innerText).filter(s=>s.trim());
- if(!blocks.length)return;
+ if(!blocks.length||source.querySelector('img,table,video,audio,iframe,pre,ruby'))return;
  const host=el('section','tp-reader');host.setAttribute('aria-label','縦書きの読書ビュー');
  const stage=el('div','tp-stage'),controls=el('nav','tp-controls');let bookEl=el('div','tp-book');controls.setAttribute('aria-label','ページ操作');
  const next=el('button','','次のページ ←'),prev=el('button','','→ 前のページ'),status=el('span','tp-status');
@@ -33,7 +33,7 @@ async function mount(source){
   return chunks;
  }
  function build(){
-  if(host.hidden)return;const width=host.clientWidth;single=width<700;pageWidth=Math.max(240,Math.floor(Math.min(width/(single?1:2),440)));pageHeight=Math.max(340,Math.min(620,Math.floor(innerHeight*.72)));
+  if(host.hidden)return;const width=host.clientWidth;single=width<600;pageWidth=Math.max(240,Math.floor(Math.min(width/(single?1:2),440)));pageHeight=Math.max(340,Math.min(620,Math.floor(innerHeight*.72)));
   const keep=logical;const chunks=paginate();total=chunks.length;if(!total)throw Error('Empty story');
   pages=chunks.map((chunk,i)=>{const p=el('div','tp-page');const inner=el('div','tp-page-inner');chunk.forEach(t=>inner.append(el('p','',t)));p.append(inner,el('span','tp-page-no',String(i+1)));p.setAttribute('aria-label',`${i+1}ページ`);return p});
   if(!single&&pages.length%2)pages.push(el('div','tp-page'));pages.reverse();
