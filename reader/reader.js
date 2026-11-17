@@ -17,7 +17,7 @@ async function mount(source){
  host.append(stage,controls,el('p','tp-hint',''),mode);source.before(host);
  let book=null,pages=[],pageWidth=0,pageHeight=0,single=false,logical=1,timer;
  const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
- function update(){if(!book)return;const i=book.getCurrentPageIndex();const portrait=book.getOrientation()==='portrait';logical=pages.length-i-(portrait?0:1);logical=Math.max(1,logical);const last=Math.min(total,logical+(portrait?0:1));status.textContent=logical>=total?`${total} / ${total}`:`${logical}${last>logical?'–'+last:''} / ${total}`;next.disabled=last>=total;prev.disabled=logical<=1}
+ function update(){if(!book)return;const i=book.getCurrentPageIndex();const portrait=book.getOrientation()==='portrait';logical=pages.length-i-(portrait?0:1);logical=Math.max(1,logical);const last=Math.min(total,logical+(portrait?0:1));status.textContent=logical<=2?(logical===1?'表紙':'白紙'):`${logical-2}${last>logical?'–'+(last-2):''} / ${total-2}`;next.disabled=last>=total;prev.disabled=logical<=1}
  let total=0;
  function paginate(){
   const measure=el('div','tp-page tp-measure');measure.style.width=pageWidth+'px';measure.style.height=pageHeight+'px';const inner=el('div','tp-page-inner');measure.append(inner);host.append(measure);
@@ -38,7 +38,7 @@ async function mount(source){
   const title=(source.closest('article')?.querySelector('.entry-title')?.innerText||document.querySelector('h1')?.innerText||document.title).trim();
   const cover=el('div','tp-page tp-cover');cover.setAttribute('aria-label','1ページ 表紙');const panel=el('div','tp-cover-panel');panel.append(el('div','tp-cover-title',title));cover.append(panel);
   const blank=el('div','tp-page tp-blank');blank.setAttribute('aria-label','2ページ 白紙');
-  pages=[cover,blank,...chunks.map((chunk,i)=>{const p=el('div','tp-page');const inner=el('div','tp-page-inner');chunk.forEach(t=>inner.append(el('p','',t)));p.append(inner,el('span','tp-page-no',String(i+3)));p.setAttribute('aria-label',`${i+3}ページ`);return p})];
+  pages=[cover,blank,...chunks.map((chunk,i)=>{const p=el('div','tp-page');const inner=el('div','tp-page-inner');chunk.forEach(t=>inner.append(el('p','',t)));p.append(inner,el('span','tp-page-no',String(i+1)));p.setAttribute('aria-label',`${i+3}ページ`);return p})];
   if(!single&&pages.length%2)pages.push(el('div','tp-page'));pages.reverse();
   if(book){book.destroy();stage.replaceChildren();bookEl=el('div','tp-book');stage.append(bookEl)}
   stage.style.width=pageWidth*(single?1:2)+'px';stage.style.height=pageHeight+'px';
