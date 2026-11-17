@@ -14,7 +14,7 @@ async function mount(source){
  const next=el('button','','次のページ ←'),prev=el('button','','→ 前のページ'),status=el('span','tp-status');
  status.setAttribute('aria-live','polite');const mode=el('button','tp-mode','通常の文章で読む');
  next.type=prev.type=mode.type='button';controls.append(next,status,prev);stage.append(bookEl);
- host.append(stage,controls,el('p','tp-hint','左のページを右へめくると、先へ進みます。'),mode);source.before(host);
+ host.append(stage,controls,el('p','tp-hint',''),mode);source.before(host);
  let book=null,pages=[],pageWidth=0,pageHeight=0,single=false,logical=1,timer;
  const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
  function update(){if(!book)return;const i=book.getCurrentPageIndex();const portrait=book.getOrientation()==='portrait';logical=pages.length-i-(portrait?0:1);logical=Math.max(1,logical);const last=Math.min(total,logical+(portrait?0:1));status.textContent=logical>=total?`${total} / ${total}`:`${logical}${last>logical?'–'+last:''} / ${total}`;next.disabled=last>=total;prev.disabled=logical<=1}
