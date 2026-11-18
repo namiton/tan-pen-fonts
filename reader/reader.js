@@ -8,6 +8,8 @@ function siteTheme(theme){document.documentElement.classList.toggle('tp-site-dar
 siteTheme(read('tanpen-reader-settings-v1')?.theme==='dark'?'dark':'light');
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n}
 function button(text){const b=el('button','',text);b.type='button';return b}
+// Insert layout breaks only: source characters and bookmark offsets stay intact.
+function sentenceLines(text,minimum){const chars=split(text),lines=[];let start=0;for(let i=0;i<chars.length;i++){if(chars[i]!=='。')continue;let end=i+1;while(end<chars.length&&/^[」』）】〉》〕］”’]$/u.test(chars[end]))end++;if(end-start>=minimum){lines.push(chars.slice(start,end).join(''));start=end}i=end-1}if(start<chars.length)lines.push(chars.slice(start).join(''));return lines}
 function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.append(s)})}
 async function mount(source){
  if(source.dataset.tpMounted)return;source.dataset.tpMounted='1';
@@ -41,10 +43,12 @@ async function mount(source){
  function addPart(parent,part){const p=el('p','',part.text);if(part.continued)p.dataset.continued='true';if(/^[「『（〈《【]/u.test(part.text))p.dataset.dialog='true';parent.append(p);return p}
  function paginate(){
   const measure=el('div','tp-page tp-measure');measure.style.width=pageWidth+'px';measure.style.height=pageHeight+'px';const inner=el('div','tp-page-inner');measure.append(inner);host.append(measure);
+  const fontSize=parseFloat(getComputedStyle(inner).fontSize),lineCapacity=Math.max(1,Math.floor(inner.clientHeight/fontSize));
+  const minimum=Math.max(12,Math.floor(lineCapacity*.75));
   const result=[];let current=[],offset=0;
   function fits(){return inner.scrollWidth<=inner.clientWidth+1&&inner.scrollHeight<=inner.clientHeight+1}
   function flush(){if(current.length){result.push({parts:current,start:current[0].start,end:current[current.length-1].end});current=[];inner.replaceChildren()}}
-  try{for(const text of blocks){let chars=split(text),continued=false;while(chars.length){const part={text:chars.join(''),continued,start:offset,end:offset},p=addPart(inner,part);let lo=0,hi=chars.length;
+  try{for(const text of blocks.flatMap(text=>sentenceLines(text,minimum))){let chars=split(text),continued=false;while(chars.length){const part={text:chars.join(''),continued,start:offset,end:offset},p=addPart(inner,part);let lo=0,hi=chars.length;
    while(lo<hi){const mid=Math.ceil((lo+hi)/2);p.textContent=chars.slice(0,mid).join('');if(fits())lo=mid;else hi=mid-1}
    if((!lo||(lo<chars.length&&chars.length<=20))&&current.length){p.remove();flush();continue}if(!lo)throw Error('Page is too small');
    if(lo<chars.length){while(lo>1&&/^[、。，．？！!?」』）】〉》〕］…ー]/u.test(chars[lo]))lo--;while(lo>1&&/^[「『（【〈《〔［]$/u.test(chars[lo-1]))lo--}
@@ -79,5 +83,5 @@ async function mount(source){
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
 async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source);if(!document.querySelector('.tp-reader')){const toggle=button('');toggle.className='tp-site-toggle';document.body.append(toggle);siteTheme(read('tanpen-reader-settings-v1')?.theme==='dark'?'dark':'light');toggle.onclick=()=>{const prefs=read('tanpen-reader-settings-v1')||{},theme=document.documentElement.classList.contains('tp-site-dark')?'light':'dark';siteTheme(theme);write('tanpen-reader-settings-v1',{...prefs,theme})}}}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v13.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v14.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
