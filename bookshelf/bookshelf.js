@@ -76,7 +76,7 @@ function card(item){
  front.append(frontPanel);back.append(backPanel);
  spine.append(el('span','pz-spine-series','ポンズ文庫'),el('span','pz-spine-title',item.title),el('span','pz-spine-date',item.date.replace('.',String.fromCharCode(10))));
  book.append(front,back,spine,el('span','pz-face pz-foreedge'),el('span','pz-face pz-top'),el('span','pz-face pz-bottom'));stage.append(book);link.append(stage);
- const caption=el('span','pz-book-caption');caption.append(el('span','pz-book-title',item.title));if(item.date)caption.append(el('span','pz-book-date',item.date));link.append(caption);li.append(link);interact(link,book);return li;
+ li.append(link);interact(link,book);return li;
 }
 function themeMenu(){
  const menu=el('details','pz-theme'),summary=el('summary','pz-theme-trigger'),panel=el('div','pz-theme-panel'),buttons={};
@@ -101,5 +101,5 @@ function boot(){
 
 }
 if(!isListing())return;
-const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v3.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
+const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v4.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
 })();
