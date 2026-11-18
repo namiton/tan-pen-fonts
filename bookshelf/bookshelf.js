@@ -6,6 +6,26 @@ const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className
 const clean=text=>(text||'').replace(/\s+/g,' ').trim();
 const prefs=()=>{try{return JSON.parse(localStorage.getItem('tanpen-reader-settings-v1'))||{}}catch{return {}}};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let cardNumber=0;
+function compactCount(n){if(n===null||!Number.isFinite(n))return '—';if(n>=999950)return (n/1000000).toFixed(1)+'m';if(n>=1000)return (n/1000).toFixed(1)+'k';return String(n)}
+function starTotal(entry){let total=0;const groups=[entry.stars||[],...(entry.colored_stars||[]).map(group=>group.stars||[])];for(const stars of groups){if(!Array.isArray(stars))throw Error('Invalid star list');for(const star of stars){if(typeof star!=='number'&&(!star||typeof star!=='object'))throw Error('Invalid star');const count=typeof star==='number'?star:(star.count===undefined?1:star.count);if(!Number.isSafeInteger(count)||count<0)throw Error('Invalid star count');total+=count}}if(!Number.isSafeInteger(total))throw Error('Invalid star total');return total}
+function paintStars(item,count){
+ const metric=item.card.querySelector('.pz-star-total'),number=metric.querySelector('.pz-star-number');number.textContent=compactCount(count);
+ const description=count===null?'はてなスター数を取得できませんでした':'公開はてなスター '+count.toLocaleString('ja-JP')+'個';metric.title=description;metric.setAttribute('aria-label',description);metric.dataset.state=count===null?'unavailable':'ready';
+}
+async function loadStars(items){
+ const queue=[],ttl=300000;
+ for(const item of items){let cached;try{cached=JSON.parse(sessionStorage.getItem('ponzu-stars-v1:'+item.url))}catch{}if(cached&&Date.now()-cached.at<ttl&&Number.isSafeInteger(cached.count)&&cached.count>=0)paintStars(item,cached.count);else queue.push(item)}
+ for(let start=0;start<queue.length;start+=10){
+  const batch=queue.slice(start,start+10),url=new URL('https://s.hatena.ne.jp/entries.json');batch.forEach(item=>url.searchParams.append('uri',item.url));
+  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),8000);
+  try{
+   const response=await fetch(url,{credentials:'omit',signal:controller.signal});if(!response.ok)throw Error('Star API unavailable');const data=await response.json();if(data.error||!Array.isArray(data.entries))throw Error('Invalid star response');
+   const counts=new Map();for(const entry of data.entries){if(typeof entry.uri!=='string')throw Error('Invalid star URL');counts.set(new URL(entry.uri).href,starTotal(entry))}
+   for(const item of batch){const count=counts.get(item.url)??0;paintStars(item,count);try{sessionStorage.setItem('ponzu-stars-v1:'+item.url,JSON.stringify({count,at:Date.now()}))}catch{}}
+  }catch{batch.forEach(item=>paintStars(item,null))}finally{clearTimeout(timeout)}
+ }
+}
 function collect(main){
  const seen=new Set(),items=[];
  for(const source of main.querySelectorAll('article.entry,.hentry,.archive-entry')){
@@ -76,6 +96,9 @@ function card(item){
  front.append(frontPanel);back.append(backPanel);
  spine.append(el('span','pz-spine-series','ポンズ文庫'),el('span','pz-spine-title',item.title),el('span','pz-spine-date',item.date.replace('.',String.fromCharCode(10))));
  book.append(front,back,spine,el('span','pz-face pz-foreedge'),el('span','pz-face pz-top'),el('span','pz-face pz-bottom'));stage.append(book);link.append(stage);
+ const caption=el('span','pz-book-caption'),name=el('span','pz-book-title',item.title),metric=el('span','pz-star-total'),number=el('span','pz-star-number','—');name.title=item.title;
+ metric.id='pz-star-'+(++cardNumber);metric.dataset.state='loading';metric.setAttribute('aria-label','はてなスター数を取得中');link.setAttribute('aria-describedby',metric.id);
+ const icon=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');icon.setAttribute('viewBox','0 0 24 24');icon.setAttribute('class','pz-star-icon');icon.setAttribute('aria-hidden','true');path.setAttribute('d','m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z');icon.append(path);metric.append(icon,number);caption.append(name,metric);link.append(caption);
  li.append(link);interact(link,book);return li;
 }
 function themeMenu(){
@@ -98,8 +121,8 @@ function boot(){
  items.forEach(item=>{item.source.dataset.pzSource='true';item.source.hidden=true});
  if(!items.length){for(const node of main.querySelectorAll('.entry,.no-entries,h1,h2,p')){if(node.closest('.pz-bookshelf'))continue;const text=clean(node.textContent);if(text==='まだ記事がありません'||(node.matches('.entry')&&!node.querySelector('.entry-title a[href]')&&text.includes('はてなブログへようこそ'))){node.dataset.pzSource='true';node.hidden=true}}}
  document.body.classList.add('pz-shelf-active');
-
+ loadStars(items);
 }
 if(!isListing())return;
-const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v6.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
+const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v7.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
 })();
