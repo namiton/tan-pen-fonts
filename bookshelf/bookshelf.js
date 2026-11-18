@@ -16,38 +16,13 @@ function collect(main){
   if(seen.has(url.href))continue;seen.add(url.href);
   const title=clean(link.textContent);if(!title)continue;
   const settings=window.PonzuShelf?.books?.[url.pathname]||{},time=source.querySelector('time'),date=time?.getAttribute('datetime')||clean(source.querySelector('.date,.archive-date,.entry-date')?.textContent);
-  const dateText=/\d{4}-\d{2}-\d{2}/.exec(date)?.[0]?.replaceAll('-','.')||'';
+  const parsedDate=new Date(date),dateText=Number.isFinite(parsedDate.getTime())?new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo',year:'numeric',month:'2-digit',day:'2-digit'}).format(parsedDate).replaceAll('-','.'):(/\d{4}-\d{2}-\d{2}/.exec(date)?.[0]?.replaceAll('-','.')||'');
   const firstParagraph=source.querySelector('.entry-content p,.entry-description,.archive-entry-body');
   const synopsis=clean(settings.synopsis||source.dataset.bookSynopsis||firstParagraph?.textContent).slice(0,110);
-  const episode=clean(settings.episode||source.dataset.bookEpisode||/第[\d０-９一二三四五六七八九十百]+話/.exec(title)?.[0]||'');
-  items.push({source,url:url.href,title,date:dateText,episode,series:clean(settings.series||source.dataset.bookSeries||'短編日記'),synopsis});
+
+  items.push({source,url:url.href,title,date:dateText,series:clean(settings.series||source.dataset.bookSeries||'短編日記'),synopsis});
  }
  return items;
-}
-function japaneseNumber(n){let result='';for(const [unit,symbol] of [[1000,'千'],[100,'百'],[10,'十'],[1,'']]){const digit=Math.floor(n/unit);n%=unit;if(digit)result+=(digit===1&&unit>1?'':'一二三四五六七八九'[digit-1])+symbol}return result}
-async function numberBooks(items){
- if(!items.length)return;
- const cacheKey='ponzu-shelf-order-v1',paths=items.map(item=>new URL(item.url).pathname);let order;
- try{const cache=JSON.parse(sessionStorage.getItem(cacheKey));if(cache&&Date.now()-cache.at<300000&&paths.every(path=>cache.order.includes(path)))order=cache.order}catch{}
- if(!order){
-  const newest=[],seen=new Set(),visited=new Set();let url=new URL('/archive',location.origin).href;
-  try{
-   while(url){
-    if(visited.has(url)||visited.size>=100)throw Error('Incomplete archive');visited.add(url);
-    const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);let response;
-    try{response=await fetch(url,{credentials:'same-origin',signal:controller.signal})}finally{clearTimeout(timeout)}
-    if(!response.ok)throw Error('Archive unavailable');
-    const doc=new DOMParser().parseFromString(await response.text(),'text/html');
-    const pageItems=collect(doc.querySelector('#main-inner,#main')||doc);if(!pageItems.length)throw Error('Archive contains no entries');
-    for(const item of pageItems){const path=new URL(item.url).pathname;if(!seen.has(path)){seen.add(path);newest.push(path)}}
-    const next=doc.querySelector('.pager-next a[href],a.pager-next[href],.pager a[rel=next]');
-    if(next){const candidate=new URL(next.getAttribute('href'),response.url);if(candidate.origin!==location.origin||!/^\/archive(?:\/|$)/.test(candidate.pathname))throw Error('Unexpected archive URL');url=candidate.href}else url=null;
-   }
-   order=newest.reverse();if(!paths.every(path=>order.includes(path)))return;
-   try{sessionStorage.setItem(cacheKey,JSON.stringify({at:Date.now(),order}))}catch{}
-  }catch(error){console.warn('Ponzu shelf: episode numbering unavailable; article links remain usable.');return}
- }
- for(const item of items){const n=order.indexOf(new URL(item.url).pathname)+1;if(!n)continue;const label='第'+(n<10000?japaneseNumber(n):n)+'話';for(const node of item.card.querySelectorAll('.pz-cover-episode,.pz-spine-episode'))node.textContent=label}
 }
 function interact(link,book){
  const initial={x:-7,y:-16};let x=initial.x,y=initial.y,drag=null,blockClick=false,resetTimer;
@@ -96,10 +71,10 @@ function card(item){
  const stage=el('span','pz-book-stage'),book=el('span','pz-book');book.setAttribute('aria-hidden','true');
  const front=el('span','pz-face pz-front'),back=el('span','pz-face pz-back'),spine=el('span','pz-face pz-spine');
  const frontPanel=el('span','pz-cover-panel'),backPanel=el('span','pz-cover-panel');
- frontPanel.append(el('span','pz-cover-series',item.series),el('span','pz-cover-title',item.title),el('span','pz-cover-episode',item.episode),el('span','pz-cover-imprint','ポンズ文庫'));
+ frontPanel.append(el('span','pz-cover-series',item.series),el('span','pz-cover-title',item.title),el('span','pz-cover-date',item.date),el('span','pz-cover-imprint','ポンズ文庫'));
  backPanel.append(el('span','pz-back-label','あらすじ'),el('span','pz-back-copy',item.synopsis||'日常のすぐ隣にある、小さな物語。'),el('span','pz-back-imprint','ポンズ文庫'));
  front.append(frontPanel);back.append(backPanel);
- spine.append(el('span','pz-spine-series','ポンズ文庫'),el('span','pz-spine-title',item.title),el('span','pz-spine-episode',item.episode));
+ spine.append(el('span','pz-spine-series','ポンズ文庫'),el('span','pz-spine-title',item.title),el('span','pz-spine-date',item.date.replace('.',String.fromCharCode(10))));
  book.append(front,back,spine,el('span','pz-face pz-foreedge'),el('span','pz-face pz-top'),el('span','pz-face pz-bottom'));stage.append(book);link.append(stage);
  const caption=el('span','pz-book-caption');caption.append(el('span','pz-book-title',item.title));if(item.date)caption.append(el('span','pz-book-date',item.date));link.append(caption);li.append(link);interact(link,book);return li;
 }
@@ -123,8 +98,8 @@ function boot(){
  items.forEach(item=>{item.source.dataset.pzSource='true';item.source.hidden=true});
  if(!items.length){for(const node of main.querySelectorAll('.entry,.no-entries,h1,h2,p')){if(node.closest('.pz-bookshelf'))continue;const text=clean(node.textContent);if(text==='まだ記事がありません'||(node.matches('.entry')&&!node.querySelector('.entry-title a[href]')&&text.includes('はてなブログへようこそ'))){node.dataset.pzSource='true';node.hidden=true}}}
  document.body.classList.add('pz-shelf-active');
- numberBooks(items);
+
 }
 if(!isListing())return;
-const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v1.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
+const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v2.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
 })();
