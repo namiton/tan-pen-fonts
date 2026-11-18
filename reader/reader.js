@@ -26,7 +26,7 @@ async function mount(source){
  const stage=el('div','tp-stage'),bookFrame=el('div','tp-book-frame'),ribbon=el('span','tp-bookmark-ribbon'),controls=el('nav','tp-controls');let bookEl=el('div','tp-book');controls.setAttribute('aria-label','ページ操作');
  ribbon.hidden=true;ribbon.setAttribute('role','img');ribbon.setAttribute('aria-label','しおりを挟んだ位置');
  const next=button('次のページ ←'),prev=button('→ 前のページ'),status=el('span','tp-status'),mode=button('通常の文章で読む');mode.className='tp-mode';
- status.setAttribute('aria-live','polite');controls.append(next,status,prev);stage.append(bookEl);bookFrame.append(stage,ribbon);host.append(toolbar,bookFrame,controls,mode);source.before(host);
+ status.setAttribute('aria-live','polite');controls.append(next,status,prev);stage.append(bookEl);bookFrame.append(stage,ribbon);host.append(toolbar,bookFrame,controls);source.before(host);
  function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
  function bookmarkButtons(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=!valid;saveButton.textContent=valid?'しおりを更新':'しおりを挟む';paintBookmark()}
  function paintBookmark(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);if(!book||!valid){ribbon.hidden=true;return}const target=pageFor(saved),last=Math.min(total,logical+(book.getOrientation()==='portrait'?0:1));ribbon.hidden=target<logical||target>last}
@@ -73,5 +73,5 @@ async function mount(source){
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
 async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source)}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v10.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v11.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
