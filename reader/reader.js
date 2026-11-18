@@ -22,13 +22,16 @@ async function mount(source){
  const toolbar=el('div','tp-toolbar'),themeButton=button(''),sizes=el('div','tp-sizes');sizes.setAttribute('role','group');sizes.setAttribute('aria-label','文字サイズ');
  const sizeButtons={};for(const [key,label] of [['tiny','極小'],['small','小'],['medium','中'],['large','大']]){const b=button(label);b.setAttribute('aria-label','文字サイズ '+label);sizes.append(b);sizeButtons[key]=b}
  const saveButton=button('しおりを挟む'),goButton=button('しおりへ戻る'),removeButton=button('しおりを外す');
- const bookmarkTools=el('div','tp-bookmarks');bookmarkTools.setAttribute('role','group');bookmarkTools.setAttribute('aria-label','しおり');bookmarkTools.append(saveButton,goButton,removeButton);toolbar.append(themeButton,sizes,bookmarkTools);
+ const bookmarkTools=el('details','tp-bookmarks'),bookmarkSummary=el('summary','tp-bookmark-trigger','しおり'),bookmarkPanel=el('div','tp-bookmark-panel');bookmarkSummary.setAttribute('aria-label','しおり');bookmarkPanel.append(saveButton,goButton,removeButton);bookmarkTools.append(bookmarkSummary,bookmarkPanel);toolbar.append(themeButton,sizes,bookmarkTools);
+ const closeBookmarkMenu=()=>{bookmarkTools.open=false;bookmarkSummary.focus({preventScroll:true})};
+ document.addEventListener('pointerdown',event=>{if(!bookmarkTools.contains(event.target))bookmarkTools.open=false});
+ bookmarkTools.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();closeBookmarkMenu()}});
  const stage=el('div','tp-stage'),bookFrame=el('div','tp-book-frame'),ribbon=el('span','tp-bookmark-ribbon'),controls=el('nav','tp-controls');let bookEl=el('div','tp-book');controls.setAttribute('aria-label','ページ操作');
  ribbon.hidden=true;ribbon.setAttribute('role','img');ribbon.setAttribute('aria-label','しおりを挟んだ位置');
  const next=button('次のページ ←'),prev=button('→ 前のページ'),status=el('span','tp-status'),mode=button('通常の文章で読む');mode.className='tp-mode';
  status.setAttribute('aria-live','polite');controls.append(next,status,prev);stage.append(bookEl);bookFrame.append(stage,ribbon);host.append(toolbar,bookFrame,controls);source.before(host);
  function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
- function bookmarkButtons(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=!valid;saveButton.textContent=valid?'しおりを更新':'しおりを挟む';paintBookmark()}
+ function bookmarkButtons(){const valid=!!(saved&&saved.title===title&&Number.isFinite(saved.offset));goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=false;saveButton.textContent=valid?'今の位置に更新':'今の位置にしおりを挟む';host.dataset.bookmarked=String(valid);bookmarkSummary.setAttribute('aria-label',valid?'しおり（登録済み）':'しおり');paintBookmark()}
  function paintBookmark(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);if(!book||!valid){ribbon.hidden=true;return}const target=pageFor(saved),last=Math.min(total,logical+(book.getOrientation()==='portrait'?0:1));ribbon.hidden=target<logical||target>last}
  function anchor(){if(logical<=2)return {front:logical};return {offset:chunks[Math.min(chunks.length-1,logical-3)]?.start||0}}
  function pageFor(a){if(a.front)return a.front;const found=chunks.findIndex(c=>a.offset>=c.start&&a.offset<c.end);return found<0?total:found+3}
@@ -65,13 +68,13 @@ async function mount(source){
  host.addEventListener('keydown',e=>{if(e.target.closest('.tp-toolbar'))return;if(e.key==='ArrowLeft'){e.preventDefault();if(!next.disabled)next.click()}if(e.key==='ArrowRight'){e.preventDefault();if(!prev.disabled)prev.click()}});
  themeButton.onclick=()=>{theme=theme==='dark'?'light':'dark';applySettings();write('tanpen-reader-settings-v1',{theme,size})};
  for(const key in sizeButtons)sizeButtons[key].onclick=()=>{if(key===size)return;const keep=anchor();size=key;applySettings();write('tanpen-reader-settings-v1',{theme,size});rebuild(keep)};
- saveButton.onclick=()=>{const candidate={...anchor(),offset:anchor().offset||0,title,updatedAt:new Date().toISOString()};if(write(bookmarkKey,candidate)){saved=candidate;bookmarkButtons()}};
- goButton.onclick=()=>{if(!saved)return;if(source.classList.contains('tp-plain'))mode.click();book.turnToPage(Math.max(0,pages.length-pageFor(saved)));update()};
- removeButton.onclick=()=>{if(write(bookmarkKey,null)){saved=null;bookmarkButtons()}};
+ saveButton.onclick=()=>{const candidate={...anchor(),offset:anchor().offset||0,title,updatedAt:new Date().toISOString()};if(write(bookmarkKey,candidate)){saved=candidate;bookmarkButtons();closeBookmarkMenu()}};
+ goButton.onclick=()=>{if(!saved)return;if(source.classList.contains('tp-plain'))mode.click();book.turnToPage(Math.max(0,pages.length-pageFor(saved)));update();closeBookmarkMenu()};
+ removeButton.onclick=()=>{if(write(bookmarkKey,null)){saved=null;bookmarkButtons();closeBookmarkMenu()}};
  mode.onclick=()=>{const plain=source.classList.toggle('tp-plain');bookFrame.hidden=controls.hidden=plain;source.classList.toggle('tp-original',!plain);mode.textContent=plain?'ページめくりで読む':'通常の文章で読む';if(!plain)update()};
  applySettings();bookmarkButtons();
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
 async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source)}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v11.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v12.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
