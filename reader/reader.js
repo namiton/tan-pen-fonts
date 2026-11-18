@@ -66,7 +66,7 @@ async function mount(source){
   if(host.hidden||building)return;building=true;
   try{const style=getComputedStyle(host),width=host.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);single=width<560;pageWidth=Math.max(200,Math.floor(Math.min(width/(single?1:2),440)));pageHeight=Math.max(340,Math.min(620,Math.floor(innerHeight*.74),Math.round(pageWidth*1.6)));
    chunks=paginate();if(!chunks.length)throw Error('Empty story');total=chunks.length+2;
-   const cover=el('div','tp-page tp-cover');cover.setAttribute('aria-label','表紙');const panel=el('div','tp-cover-panel');panel.append(el('div','tp-cover-title',title));cover.append(panel);
+   const cover=el('div','tp-page tp-cover');cover.setAttribute('aria-label','表紙');const panel=el('div','tp-cover-panel');panel.append(el('div','tp-cover-title',title),el('div','tp-cover-imprint','ポンズ文庫'));cover.append(panel);
    const blank=el('div','tp-page tp-blank');blank.setAttribute('aria-label','白紙');
    pages=[cover,blank,...chunks.map((chunk,i)=>{const p=el('div','tp-page '+(i%2?'tp-page-even':'tp-page-odd')),inner=el('div','tp-page-inner');chunk.parts.forEach(part=>addPart(inner,part));p.append(inner,el('span','tp-page-no',String(i+1)));p.setAttribute('aria-label',`本文${i+1}ページ`);p.dataset.start=String(chunk.start);return p})];
    if(!single&&pages.length%2)pages.push(el('div','tp-page'));pages.reverse();
@@ -89,5 +89,5 @@ async function mount(source){
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
 async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source);if(!document.querySelector('.tp-reader')){const toggle=button('');toggle.className='tp-site-toggle';document.body.append(toggle);siteTheme(read('tanpen-reader-settings-v1')?.theme==='dark'?'dark':'light');toggle.onclick=()=>{const prefs=read('tanpen-reader-settings-v1')||{},theme=document.documentElement.classList.contains('tp-site-dark')?'light':'dark';siteTheme(theme);write('tanpen-reader-settings-v1',{...prefs,theme})}}}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v19.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v20.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
