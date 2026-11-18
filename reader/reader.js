@@ -4,6 +4,8 @@ const BASE='https://namiton.github.io/tan-pen-fonts/reader/';
 const split=s=>globalThis.Intl?.Segmenter?[...new Intl.Segmenter('ja',{granularity:'grapheme'}).segment(s)].map(x=>x.segment):Array.from(s);
 const read=k=>{try{return JSON.parse(localStorage.getItem(k))}catch{return null}};
 const write=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true}catch{return false}};
+function siteTheme(theme){document.documentElement.classList.toggle('tp-site-dark',theme==='dark');for(const b of document.querySelectorAll('.tp-site-toggle')){b.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';b.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える')}}
+siteTheme(read('tanpen-reader-settings-v1')?.theme==='dark'?'dark':'light');
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n}
 function button(text){const b=el('button','',text);b.type='button';return b}
 function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.append(s)})}
@@ -30,7 +32,7 @@ async function mount(source){
  ribbon.hidden=true;ribbon.setAttribute('role','img');ribbon.setAttribute('aria-label','しおりを挟んだ位置');
  const next=button('次のページ ←'),prev=button('→ 前のページ'),status=el('span','tp-status'),mode=button('通常の文章で読む');mode.className='tp-mode';
  status.setAttribute('aria-live','polite');controls.append(next,status,prev);stage.append(bookEl);bookFrame.append(stage,ribbon);host.append(toolbar,bookFrame,controls);source.before(host);
- function applySettings(){host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
+ function applySettings(){siteTheme(theme);host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');themeButton.textContent=theme==='dark'?'明るいテーマ':'ダークテーマ';themeButton.setAttribute('aria-label',theme==='dark'?'明るいテーマに切り替える':'ダークテーマに切り替える');for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
  function bookmarkButtons(){const valid=!!(saved&&saved.title===title&&Number.isFinite(saved.offset));goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=false;saveButton.textContent=valid?'今の位置に更新':'今の位置にしおりを挟む';host.dataset.bookmarked=String(valid);bookmarkSummary.setAttribute('aria-label',valid?'しおり（登録済み）':'しおり');paintBookmark()}
  function paintBookmark(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);if(!book||!valid){ribbon.hidden=true;return}const target=pageFor(saved),last=Math.min(total,logical+(book.getOrientation()==='portrait'?0:1));ribbon.hidden=target<logical||target>last}
  function anchor(){if(logical<=2)return {front:logical};return {offset:chunks[Math.min(chunks.length-1,logical-3)]?.start||0}}
@@ -66,7 +68,8 @@ async function mount(source){
  function rebuild(keep){try{build(keep)}catch(error){fallback(error)}}
  next.onclick=()=>book?.flipPrev('bottom');prev.onclick=()=>book?.flipNext('bottom');
  host.addEventListener('keydown',e=>{if(e.target.closest('.tp-toolbar'))return;if(e.key==='ArrowLeft'){e.preventDefault();if(!next.disabled)next.click()}if(e.key==='ArrowRight'){e.preventDefault();if(!prev.disabled)prev.click()}});
- themeButton.onclick=()=>{theme=theme==='dark'?'light':'dark';applySettings();write('tanpen-reader-settings-v1',{theme,size})};
+ document.addEventListener('tanpen-reader-theme',event=>{if(event.detail==='dark'||event.detail==='light'){theme=event.detail;applySettings()}});
+ themeButton.onclick=()=>{theme=theme==='dark'?'light':'dark';applySettings();write('tanpen-reader-settings-v1',{theme,size});document.dispatchEvent(new CustomEvent('tanpen-reader-theme',{detail:theme}))};
  for(const key in sizeButtons)sizeButtons[key].onclick=()=>{if(key===size)return;const keep=anchor();size=key;applySettings();write('tanpen-reader-settings-v1',{theme,size});rebuild(keep)};
  saveButton.onclick=()=>{const candidate={...anchor(),offset:anchor().offset||0,title,updatedAt:new Date().toISOString()};if(write(bookmarkKey,candidate)){saved=candidate;bookmarkButtons();closeBookmarkMenu()}};
  goButton.onclick=()=>{if(!saved)return;if(source.classList.contains('tp-plain'))mode.click();book.turnToPage(Math.max(0,pages.length-pageFor(saved)));update();closeBookmarkMenu()};
@@ -75,6 +78,6 @@ async function mount(source){
  applySettings();bookmarkButtons();
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
-async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source)}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v12.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+async function boot(){if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source);if(!document.querySelector('.tp-reader')){const toggle=button('');toggle.className='tp-site-toggle';document.body.append(toggle);siteTheme(read('tanpen-reader-settings-v1')?.theme==='dark'?'dark':'light');toggle.onclick=()=>{const prefs=read('tanpen-reader-settings-v1')||{},theme=document.documentElement.classList.contains('tp-site-dark')?'light':'dark';siteTheme(theme);write('tanpen-reader-settings-v1',{...prefs,theme})}}}
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v13.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
