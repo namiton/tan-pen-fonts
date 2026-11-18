@@ -25,7 +25,7 @@ function collect(main){
  return items;
 }
 function interact(link,book){
- const initial={x:-7,y:-16};let x=initial.x,y=initial.y,drag=null,blockClick=false,resetTimer;
+ const initial={x:0,y:0};let x=initial.x,y=initial.y,drag=null,blockClick=false,resetTimer;
  const draw=()=>{book.style.transform=`rotateX(${x}deg) rotateY(${y}deg)`};draw();
  function restore(){
   if(drag)return;link.classList.remove('pz-dragging');book.style.transition=reduce?'none':'transform 620ms cubic-bezier(.22,.75,.24,1)';
@@ -92,7 +92,7 @@ function boot(){
  const main=document.querySelector('#main-inner')||document.querySelector('#main');if(!main)return;
  if(!CSS.supports('transform-style','preserve-3d'))return;
  const items=collect(main),shelf=el('section','pz-bookshelf');shelf.setAttribute('aria-label','ポンズ文庫の本棚');
- const header=el('div','pz-shelf-header'),intro=el('div','pz-shelf-intro');intro.append(el('h2','pz-shelf-heading','ポンズ文庫'),el('p','pz-shelf-note',matchMedia('(hover:hover)').matches?'ドラッグで回転、クリックで読む':'表紙をタップして読む'));header.append(intro,themeMenu());shelf.append(header);
+ const header=el('div','pz-shelf-header'),intro=el('div','pz-shelf-intro');intro.append(el('h2','pz-shelf-heading','ポンズ文庫'));header.append(intro,themeMenu());shelf.append(header);
  if(items.length){const grid=el('ul','pz-shelf-grid');items.forEach(item=>{item.card=card(item);grid.append(item.card)});shelf.append(grid)}else{shelf.append(el('p','pz-shelf-empty','最初の一冊を、準備しています。'))}
  const heading=main.querySelector('.archive-heading');if(heading)heading.after(shelf);else main.prepend(shelf);
  items.forEach(item=>{item.source.dataset.pzSource='true';item.source.hidden=true});
@@ -101,5 +101,5 @@ function boot(){
 
 }
 if(!isListing())return;
-const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v2.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
+const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v3.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
 })();
