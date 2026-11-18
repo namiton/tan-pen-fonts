@@ -79,6 +79,9 @@ function interact(link,book){
  link.addEventListener('lostpointercapture',()=>{if(drag){blockClick=true;drag=null;restore()}});
  link.addEventListener('pointerleave',restore);
  link.addEventListener('blur',restore);
+ const loseFocus=()=>{if(drag){const id=drag.id;drag=null;blockClick=true;if(link.hasPointerCapture(id))link.releasePointerCapture(id)}restore()};
+ window.addEventListener('blur',loseFocus);
+ document.addEventListener('visibilitychange',()=>{if(document.hidden)loseFocus()});
  link.addEventListener('dragstart',event=>event.preventDefault());
  link.addEventListener('click',event=>{if(blockClick){event.preventDefault();event.stopPropagation();blockClick=false}});
  link.addEventListener('keydown',event=>{
