@@ -1,4 +1,4 @@
-# 短編日記のWebフォント
+Webフォント
 
 配布元：雨々（Ameame）氏の倫明朝 https://rinmincho.pages.dev/
 原版：v1.0.0。ライセンス：SIL Open Font License 1.1（OFL.txt）。
