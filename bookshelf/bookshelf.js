@@ -4,6 +4,24 @@ const BASE='https://namiton.github.io/tan-pen-fonts/bookshelf/';
 const isListing=()=>document.body.matches('.page-index,.page-archive')||location.pathname==='/'||/^\/(archive|search)(\/|$)/.test(location.pathname);
 const el=(tag,cls,text)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(text!==undefined)n.textContent=text;return n};
 const clean=text=>(text||'').replace(/\s+/g,' ').trim();
+const titleSegmenter=typeof Intl.Segmenter==='function'?new Intl.Segmenter('ja',{granularity:'word'}):null;
+function coverTitle(title){
+ const node=el('span','pz-cover-title');
+ if(!titleSegmenter){node.textContent=title;return node}
+ const words=[],joinLeft=/^(?:の|が|を|に|へ|と|で|や|も|は|な|から|まで|より|だけ|ほど|など|って|という|ない|ず|た|だ|です|ます|ました|ません|られる|れる|たい|さ|[、。，．！？!?：:；;）\]」』】])$/;
+ const suffix=/^[日年月時分秒目中後前用側先室店駅橋町村港館書票箱係課部局所版編集巻章話号番感車]$/;
+ for(const {segment} of titleSegmenter.segment(title)){
+  const previous=words.at(-1)||'';
+  // Keep particles with their word and short compound endings such as 点検＋日.
+  if(previous&&(joinLeft.test(segment)||(suffix.test(segment)&&/\p{Script=Han}$/u.test(previous))||(/^\p{Script=Han}$/u.test(previous)&&/^\p{Script=Han}/u.test(segment))||/[（\[「『【]$/.test(previous)))words[words.length-1]+=segment;
+  else words.push(segment);
+ }
+ const width=word=>Array.from(word).reduce((sum,char)=>sum+(/[\p{Script=Latin}\p{Number}\s]/u.test(char)?.6:1),0);
+ const longest=Math.max(1,...words.map(width));
+ node.style.setProperty('--pz-title-fit',String(Math.max(.055,Math.min(.11,Math.max(.075,.68/(longest+.2)),1.5/(width(title)+.2)))));
+ words.forEach(word=>node.append(el('span','pz-title-word',word)));
+ return node;
+}
 const prefs=()=>{try{return JSON.parse(localStorage.getItem('tanpen-reader-settings-v1'))||{}}catch{return {}}};
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let cardNumber=0;
@@ -91,7 +109,7 @@ function card(item){
  const stage=el('span','pz-book-stage'),book=el('span','pz-book');book.setAttribute('aria-hidden','true');
  const front=el('span','pz-face pz-front'),back=el('span','pz-face pz-back'),spine=el('span','pz-face pz-spine');
  const frontPanel=el('span','pz-cover-panel'),backPanel=el('span','pz-cover-panel');
- frontPanel.append(el('span','pz-cover-series',item.series),el('span','pz-cover-title',item.title),el('span','pz-cover-date',item.date),el('span','pz-cover-imprint','ポンズ文庫'));
+ frontPanel.append(el('span','pz-cover-series',item.series),coverTitle(item.title),el('span','pz-cover-date',item.date),el('span','pz-cover-imprint','ポンズ文庫'));
  backPanel.append(el('span','pz-back-label','あらすじ'),el('span','pz-back-copy',item.synopsis||'日常のすぐ隣にある、小さな物語。'),el('span','pz-back-imprint','ポンズ文庫'));
  front.append(frontPanel);back.append(backPanel);
  spine.append(el('span','pz-spine-series','ポンズ文庫'),el('span','pz-spine-title',item.title),el('span','pz-spine-date',item.date.replace('.',String.fromCharCode(10))));
@@ -124,5 +142,5 @@ function boot(){
  loadStars(items);
 }
 if(!isListing())return;
-const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v7.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
+const css=el('link');css.rel='stylesheet';css.href=BASE+'bookshelf-v8.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot()};document.head.append(css);
 })();
