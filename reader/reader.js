@@ -13,7 +13,12 @@ function sentenceLines(text,minimum){const chars=split(text),lines=[];let start=
 function loadScript(src){return new Promise((resolve,reject)=>{const s=document.createElement('script');s.src=src;s.onload=resolve;s.onerror=reject;document.head.append(s)})}
 async function mount(source){
  if(source.dataset.tpMounted)return;source.dataset.tpMounted='1';
- const blocks=[...source.children].filter(n=>n.tagName==='P').map(n=>n.innerText.replace(/\r\n?/g,'\n').trim()).filter(Boolean);
+ const chapterPattern=/^(第[一二三四五六七八九十百〇零0-9]+章)([\s\u3000]+)([^\n]{1,60})$/u;
+ const blocks=[...source.children].filter(n=>n.tagName==='P'||(/^H[23]$/.test(n.tagName)&&chapterPattern.test(n.innerText.trim()))).map(n=>{
+  const text=n.innerText.replace(/\r\n?/g,'\n').trim(),match=chapterPattern.exec(text);
+  if(match)n.classList.add('tp-source-chapter');
+  return {text,chapter:match?{label:match[1],separator:match[2],title:match[3]}:null};
+ }).filter(block=>block.text);
  if(!blocks.length||source.querySelector('img,table,video,audio,iframe,pre,ruby'))return;
  const titleNode=source.closest('article')?.querySelector('.entry-title');
  const title=(titleNode?.innerText||document.querySelector('h1')?.innerText||document.title).trim();
@@ -43,23 +48,35 @@ async function mount(source){
  function applySettings(){sizeSummary.replaceChildren(el('span','tp-menu-label','文字サイズ：'+({tiny:'極小',small:'小',medium:'中',large:'大'})[size]));siteTheme(theme);host.dataset.theme=theme;host.dataset.size=size;host.style.setProperty('--tp-font-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');source.classList.toggle('tp-plain-dark',theme==='dark');source.style.setProperty('--tp-plain-size',({tiny:14,small:18,medium:20,large:23})[size]+'px');themeButton.replaceChildren(el('span','tp-menu-label','テーマ：'+(theme==='dark'?'黒':'白')));themeButton.setAttribute('aria-label',themeButton.textContent);for(const key in themeButtons)themeButtons[key].setAttribute('aria-pressed',String(theme===key));for(const key in sizeButtons)sizeButtons[key].setAttribute('aria-pressed',String(size===key))}
  function bookmarkButtons(){const valid=!!(saved&&saved.title===title&&Number.isFinite(saved.offset));goButton.disabled=removeButton.disabled=!valid;goButton.hidden=removeButton.hidden=false;saveButton.textContent=valid?'今の位置に更新':'今の位置にしおりを挟む';host.dataset.bookmarked=String(valid);bookmarkSummary.setAttribute('aria-label',valid?'しおり（登録済み）':'しおり');paintBookmark()}
  function paintBookmark(){const valid=saved&&saved.title===title&&Number.isFinite(saved.offset);if(!book||!valid){ribbon.hidden=true;return}const target=pageFor(saved),last=Math.min(total,logical+(book.getOrientation()==='portrait'?0:1));ribbon.hidden=target<logical||target>last}
- function anchor(){if(logical<=2)return {front:logical};if(logical>=chunks.length+3)return {ending:true,offset:chunks[chunks.length-1]?.end||0};return {offset:chunks[Math.min(chunks.length-1,logical-3)]?.start||0}}
- function pageFor(a){if(a.front)return a.front;if(a.ending)return total;const found=chunks.findIndex(c=>a.offset>=c.start&&a.offset<c.end);return found<0?total:found+3}
- function update(){if(!book)return;const i=book.getCurrentPageIndex(),portrait=book.getOrientation()==='portrait';logical=Math.max(1,pages.length-i-(portrait?0:1));host.dataset.layout=portrait?'single':'spread';const last=Math.min(total,logical+(portrait?0:1)),lastBody=Math.min(last,chunks.length+2);status.textContent=logical<=2?(logical===1?'表紙':'白紙'):logical>=chunks.length+3?'終':`${logical-2}${lastBody>logical?'–'+(lastBody-2):''} / ${chunks.length}`;next.disabled=last>=total;prev.disabled=logical<=1;paintBookmark()}
+ function anchor(){if(logical<=2)return {front:logical};if(logical>=chunks.length+3)return {ending:true,offset:chunks[chunks.length-1]?.end||0};const chunk=chunks[Math.min(chunks.length-1,logical-3)];return {offset:chunk?.start||0,kind:chunk?.kind,chapterIndex:chunk?.chapterIndex,gap:chunk?.gap}}
+ function pageFor(a){if(a.front)return a.front;if(a.ending)return total;if(a.kind==='blank'){const blank=chunks.findIndex(c=>c.kind==='blank'&&c.chapterIndex===a.chapterIndex&&c.gap===a.gap);if(blank>=0)return blank+3}const found=chunks.findIndex(c=>a.offset>=c.start&&a.offset<c.end);return found<0?total:found+3}
+ function update(){if(!book)return;const i=book.getCurrentPageIndex(),portrait=book.getOrientation()==='portrait';logical=Math.max(1,pages.length-i-(portrait?0:1));host.dataset.layout=portrait?'single':'spread';const last=Math.min(total,logical+(portrait?0:1)),chunk=chunks[logical-3],following=chunks[last-3],bodyTotal=chunks.filter(c=>c.kind==='text').length;status.textContent=logical<=2?(logical===1?'表紙':'白紙'):logical>=chunks.length+3?'終':chunk.kind==='blank'?'白紙':chunk.kind==='chapter'?chunk.chapter.label:`${chunk.number}${following?.kind==='text'&&following.number>chunk.number?'–'+following.number:''} / ${bodyTotal}`;next.disabled=last>=total;prev.disabled=logical<=1;paintBookmark()}
  function addPart(parent,part){const p=el('p','',part.text);if(part.continued)p.dataset.continued='true';if(/^[「『（〈《【]/u.test(part.text))p.dataset.dialog='true';parent.append(p);return p}
  function paginate(){
   const measure=el('div','tp-page tp-measure');measure.style.width=pageWidth+'px';measure.style.height=pageHeight+'px';const inner=el('div','tp-page-inner');measure.append(inner);host.append(measure);
   const fontSize=parseFloat(getComputedStyle(inner).fontSize),lineCapacity=Math.max(1,Math.floor(inner.clientHeight/fontSize));
   const minimum=Math.max(12,Math.floor(lineCapacity*.75));
-  const result=[];let current=[],offset=0;
+  const result=[];let current=[],offset=0,chapterIndex=0,textNumber=0;
   function fits(){return inner.scrollWidth<=inner.clientWidth+1&&inner.scrollHeight<=inner.clientHeight+1}
-  function flush(){if(current.length){result.push({parts:current,start:current[0].start,end:current[current.length-1].end});current=[];inner.replaceChildren()}}
-  try{for(const text of blocks.flatMap(text=>sentenceLines(text,minimum))){let chars=split(text),continued=false;while(chars.length){const part={text:chars.join(''),continued,start:offset,end:offset},p=addPart(inner,part);let lo=0,hi=chars.length;
+  function flush(){if(current.length){result.push({kind:'text',number:++textNumber,chapterIndex,parts:current,start:current[0].start,end:current[current.length-1].end});current=[];inner.replaceChildren()}}
+  function blank(gap){result.push({kind:'blank',chapterIndex,gap,parts:[],start:offset,end:offset})}
+  try{for(const block of blocks){
+   if(block.chapter){
+    flush();chapterIndex++;
+    // Chapters open on the right of a right-bound book. Keep an empty verso
+    // opposite each title, plus at least one blank page between chapters.
+    if(result.length)blank('before');
+    if((result.length+3)%2===0)blank('before');
+    const end=offset+split(block.text).length;
+    result.push({kind:'chapter',chapterIndex,chapter:block.chapter,text:block.text,parts:[],start:offset,end});offset=end;
+    blank('after');continue;
+   }
+   for(const text of sentenceLines(block.text,minimum)){let chars=split(text),continued=false;while(chars.length){const part={text:chars.join(''),continued,start:offset,end:offset},p=addPart(inner,part);let lo=0,hi=chars.length;
    while(lo<hi){const mid=Math.ceil((lo+hi)/2);p.textContent=chars.slice(0,mid).join('');if(fits())lo=mid;else hi=mid-1}
    if((!lo||(lo<chars.length&&chars.length<=20))&&current.length){p.remove();flush();continue}if(!lo)throw Error('Page is too small');
    if(lo<chars.length){while(lo>1&&/^[、。，．？！!?」』）】〉》〕］…ー]/u.test(chars[lo]))lo--;while(lo>1&&/^[「『（【〈《〔［]$/u.test(chars[lo-1]))lo--}
    part.text=chars.slice(0,lo).join('');p.textContent=part.text;offset+=lo;part.end=offset;current.push(part);chars=chars.slice(lo);continued=true;if(chars.length)flush();
-  }}flush()}finally{measure.remove()}return result;
+  }}}flush()}finally{measure.remove()}return result;
  }
  function fallback(error){console.warn('Reader fallback:',error);host.hidden=true;source.classList.remove('tp-original');source.classList.add('tp-plain')}
  function build(keep=anchor()){
@@ -69,7 +86,15 @@ async function mount(source){
    const cover=el('div','tp-page tp-cover');cover.setAttribute('aria-label','表紙');const panel=el('div','tp-cover-panel');panel.append(el('div','tp-cover-title',title),el('div','tp-cover-imprint','ポンズ文庫'));cover.append(panel);
    const blank=el('div','tp-page tp-blank');blank.setAttribute('aria-label','白紙');
    const ending=el('div','tp-page tp-ending'),endingContent=el('div','tp-ending-content');ending.setAttribute('aria-label','終');endingContent.append(el('div','tp-ending-mark','終'),el('div','tp-ending-title',title));ending.append(endingContent);
-   pages=[cover,blank,...chunks.map((chunk,i)=>{const p=el('div','tp-page '+(i%2?'tp-page-even':'tp-page-odd')),inner=el('div','tp-page-inner');chunk.parts.forEach(part=>addPart(inner,part));p.append(inner,el('span','tp-page-no',String(i+1)));p.setAttribute('aria-label',`本文${i+1}ページ`);p.dataset.start=String(chunk.start);return p}),ending];
+   pages=[cover,blank,...chunks.map((chunk,i)=>{
+    const p=el('div','tp-page '+(i%2?'tp-page-even':'tp-page-odd'));p.dataset.start=String(chunk.start);p.dataset.kind=chunk.kind;p.dataset.logical=String(i+3);p.dataset.chapter=String(chunk.chapterIndex);
+    if(chunk.kind==='chapter'){
+     p.classList.add('tp-chapter-page');const content=el('div','tp-chapter-content');content.setAttribute('role','heading');content.setAttribute('aria-level','2');content.setAttribute('aria-label',chunk.text);
+     content.append(el('span','tp-chapter-label',chunk.chapter.label),el('span','tp-chapter-separator',chunk.chapter.separator),el('span','tp-chapter-title',chunk.chapter.title));p.append(content);p.setAttribute('aria-label',chunk.text);
+    }else if(chunk.kind==='blank'){p.classList.add('tp-chapter-blank');p.dataset.gap=chunk.gap;p.setAttribute('aria-label','章間の白紙')}
+    else{const inner=el('div','tp-page-inner');chunk.parts.forEach(part=>addPart(inner,part));p.append(inner,el('span','tp-page-no',String(chunk.number)));p.setAttribute('aria-label',`本文${chunk.number}ページ`)}
+    return p;
+   }),ending];
    if(!single&&pages.length%2)pages.push(el('div','tp-page tp-ending-blank'));pages.reverse();
    if(book){book.destroy();stage.replaceChildren();bookEl=el('div','tp-book');stage.append(bookEl)}bookFrame.style.width=stage.style.width=pageWidth*(single?1:2)+'px';stage.style.height=pageHeight+'px';
    book=new St.PageFlip(bookEl,{width:pageWidth,height:pageHeight,size:'fixed',autoSize:false,usePortrait:single,showCover:false,startPage:Math.max(0,pages.length-Math.min(pageFor(keep),total)),showPageCorners:false,flippingTime:reduced?1:650,drawShadow:!reduced,maxShadowOpacity:.22,mobileScrollSupport:false,disableFlipByClick:false});
@@ -90,5 +115,5 @@ async function mount(source){
  try{await document.fonts.load('18px TanpenReader');await document.fonts.ready;build({front:1});let lastWidth=host.clientWidth;new ResizeObserver(()=>{const w=host.clientWidth;if(Math.abs(w-lastWidth)<2)return;lastWidth=w;clearTimeout(timer);const keep=anchor();timer=setTimeout(()=>rebuild(keep),180)}).observe(host)}catch(error){fallback(error)}
 }
 async function boot(){if(document.body.matches('.page-index,.page-archive')||location.pathname==='/'||/^\/(archive|search)(\/|$)/.test(location.pathname))return;if(!window.St?.PageFlip)await loadScript(BASE+'vendor/page-flip.browser.js');for(const source of document.querySelectorAll('.entry-content'))await mount(source);if(!document.querySelector('.tp-reader')){const toggle=button('');toggle.className='tp-site-toggle';document.body.append(toggle);siteTheme(read('tanpen-reader-settings-v1')?.theme==='dark'?'dark':'light');toggle.onclick=()=>{const prefs=read('tanpen-reader-settings-v1')||{},theme=document.documentElement.classList.contains('tp-site-dark')?'light':'dark';siteTheme(theme);write('tanpen-reader-settings-v1',{...prefs,theme})}}}
-const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v22.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
+const css=document.createElement('link');css.rel='stylesheet';css.href=BASE+'reader-v23.css';css.onload=()=>{if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>boot().catch(console.warn),{once:true});else boot().catch(console.warn)};document.head.append(css);
 })();
